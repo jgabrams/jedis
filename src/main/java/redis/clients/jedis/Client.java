@@ -207,6 +207,22 @@ public class Client extends BinaryClient implements Commands {
     hgetAll(SafeEncoder.encode(key));
   }
 
+  public void ntset(final String key, final String field, final String value) {
+    ntset(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
+  }
+  
+  public void ntzset(final String key, final String field, final String value) {
+    ntzset(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
+  }
+
+  public void ntget(final String key, final String field) {
+	ntget(SafeEncoder.encode(key), SafeEncoder.encode(field));
+  }
+  
+  public void ntdel(final String key, final String field) {
+	ntdel(SafeEncoder.encode(key), SafeEncoder.encode(field));
+  }
+
   public void rpush(final String key, final String... string) {
     rpush(SafeEncoder.encode(key), SafeEncoder.encodeMany(string));
   }

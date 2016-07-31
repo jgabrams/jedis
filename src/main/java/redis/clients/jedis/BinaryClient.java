@@ -281,6 +281,22 @@ public class BinaryClient extends Connection {
     sendCommand(HGETALL, key);
   }
 
+  public void ntset(final byte[] key, final byte[] field, final byte[] value) {
+    sendCommand(NTSET, key, field, value);
+  }
+  
+  public void ntzset(final byte[] key, final byte[] field, final byte[] value) {
+    sendCommand(NTZSET, key, field, value);
+  }
+
+  public void ntget(final byte[] key, final byte[] field) {
+    sendCommand(NTGET, key, field);
+  }
+  
+  public void ntdel(final byte[] key, final byte[] field) {
+	sendCommand(NTDEL, key, field);
+  }
+  
   public void rpush(final byte[] key, final byte[]... strings) {
     sendCommand(RPUSH, joinParameters(key, strings));
   }

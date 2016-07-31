@@ -98,6 +98,14 @@ public interface Commands {
   public void hvals(final String key);
 
   public void hgetAll(final String key);
+  
+  public void ntset(final String key, final String field, final String value);
+  
+  public void ntzset(final String key, final String field, final String value);
+
+  public void ntget(final String key, final String field);
+  
+  public void ntdel(final String key, final String field);
 
   public void rpush(final String key, final String... strings);
 
