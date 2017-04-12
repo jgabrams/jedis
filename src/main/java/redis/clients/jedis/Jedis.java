@@ -757,6 +757,22 @@ public class Jedis extends BinaryJedis implements JedisCommands, MultiKeyCommand
   }
 
   /**
+   * If key holds a ntrie, retrieve the value associated to the specified field.
+   * <p>
+   * If the field is not found or the key does not exist, a special 'nil' value is returned.
+   * <p>
+   * <b>Time complexity:</b> O(1)
+   * @param key
+   * @param field
+   * @return Bulk reply
+   */
+  public String ntget(final String key, final String field) {
+    checkIsInMultiOrPipeline();
+    client.ntget(key, field);
+    return client.getBulkReply();
+  }
+  
+  /**
    * Return all the fields in a hash.
    * <p>
    * <b>Time complexity:</b> O(N), where N is the total number of entries
