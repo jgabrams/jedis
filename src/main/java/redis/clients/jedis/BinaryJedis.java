@@ -730,6 +730,23 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     client.substr(key, start, end);
     return client.getBinaryBulkReply();
   }
+  
+  /**
+   * If key holds a ntrie, retrieve the value associated to the specified field.
+   * <p>
+   * If the field is not found or the key does not exist, a special 'nil' value is returned.
+   * <p>
+   * <b>Time complexity:</b> O(n)
+   * @param key
+   * @param field
+   * @return Bulk reply
+   */
+  public byte[] ntget(final byte[] key, final byte[] field) {
+    checkIsInMultiOrPipeline();
+    client.ntget(key, field);
+    return client.getBinaryBulkReply();
+  }
+  
 
   /**
    * Set the specified hash field to the specified value.
