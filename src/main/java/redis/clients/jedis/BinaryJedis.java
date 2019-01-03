@@ -14,6 +14,7 @@ import redis.clients.util.SafeEncoder;
 import java.io.Closeable;
 import java.io.Serializable;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.*;
 
 import static redis.clients.jedis.Protocol.toByteArray;
@@ -23,6 +24,9 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
   protected Client client = null;
   protected Transaction transaction = null;
   protected Pipeline pipeline = null;
+
+  static byte[] NTGET_BYTES = new String("NTGET").getBytes();
+  static byte[] HGET_BYTES = new String("HGET").getBytes();
 
   public BinaryJedis() {
     client = new Client();
@@ -747,6 +751,22 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     return client.getBinaryBulkReply();
   }
   
+  /**
+   * If key holds a ntrie, retrieve the value associated to the specified field.
+   * <p>
+   * If the field is not found or the key does not exist, a special 'nil' value is returned.
+   * <p>
+   * <b>Time complexity:</b> O(n)
+   * @param key
+   * @param field
+   * @return Bulk reply
+   */
+  public ByteBuffer ntget(final byte[] key, int keyOffset, int keyLength, final byte[] field, int fieldOffset, int fieldLength) {
+    checkIsInMultiOrPipeline();
+    client.sendCommand(NTGET_BYTES, key, keyOffset, keyLength, field, fieldOffset, fieldLength);
+    return client.getBinaryBulkReplyBuffer();
+  }
+  
 
   /**
    * Set the specified hash field to the specified value.
@@ -776,11 +796,28 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
    * @param field
    * @return Bulk reply
    */
+
   public byte[] hget(final byte[] key, final byte[] field) {
-    checkIsInMultiOrPipeline();
-    client.hget(key, field);
-    return client.getBinaryBulkReply();
-  }
+	    checkIsInMultiOrPipeline();
+	    client.hget(key, field);
+	    return client.getBinaryBulkReply();
+	  }
+  
+  /**
+   * If key holds a hash, retrieve the value associated to the specified field.
+   * <p>
+   * If the field is not found or the key does not exist, a special 'nil' value is returned.
+   * <p>
+   * <b>Time complexity:</b> O(1)
+   * @param key
+   * @param field
+   * @return Bulk reply
+   */
+  public ByteBuffer hgetBuffer(final byte[] key, int keyOffset, int keyLength, final byte[] field, int fieldOffset, int fieldLength) {
+	    checkIsInMultiOrPipeline();
+	    client.sendCommand(HGET_BYTES, key, keyOffset, keyLength, field, fieldOffset, fieldLength);
+	    return client.getBinaryBulkReplyBuffer();
+	  }
 
   /**
    * Set the specified hash field to the specified value if the field not exists. <b>Time

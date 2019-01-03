@@ -1,12 +1,17 @@
 package redis.clients.jedis;
 
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.newsclub.net.unix.AFUNIXSocket;
+import org.newsclub.net.unix.AFUNIXSocketAddress;
 
 import redis.clients.jedis.Protocol.Command;
 import redis.clients.jedis.exceptions.JedisConnectionException;
@@ -123,6 +128,35 @@ public class Connection implements Closeable {
       throw ex;
     }
   }
+  
+  protected Connection sendCommand(final byte[] cmd, final byte[] key, final int keyOffset, final int keyLength, final byte[] value, final int valueOffset, final int valueLength) {
+	    try {
+	      connect();
+	      Protocol.sendCommand(outputStream, cmd, key, keyOffset, keyLength, value, valueOffset, valueLength);
+	      pipelinedCommands++;
+	      return this;
+	    } catch (JedisConnectionException ex) {
+	      /*
+	       * When client send request which formed by invalid protocol, Redis send back error message
+	       * before close connection. We try to read it to provide reason of failure.
+	       */
+	      try {
+	        String errorMessage = Protocol.readErrorLineIfPossible(inputStream);
+	        if (errorMessage != null && errorMessage.length() > 0) {
+	          ex = new JedisConnectionException(errorMessage, ex.getCause());
+	        }
+	      } catch (Exception e) {
+	        /*
+	         * Catch any IOException or JedisConnectionException occurred from InputStream#read and just
+	         * ignore. This approach is safe because reading error message is optional and connection
+	         * will eventually be closed.
+	         */
+	      }
+	      // Any other exceptions related to connection?
+	      broken = true;
+	      throw ex;
+	    }
+	  }
 
   public String getHost() {
     return host;
@@ -140,9 +174,26 @@ public class Connection implements Closeable {
     this.port = port;
   }
 
+    private boolean isUDSConnection(String host) {
+    	    File udsFile = new File(host);
+    	    return udsFile.isAbsolute() && udsFile.exists();
+    	  }
   public void connect() {
     if (!isConnected()) {
       try {
+		if (port == 0) {
+			if (isUDSConnection(host))
+			{
+				socket = AFUNIXSocket.newInstance();
+				//socket.setReuseAddress(true);
+				socket.connect(new AFUNIXSocketAddress(new File(host)), soTimeout);
+			}
+			else
+			{
+				throw new IOException ("Bad unix socket: "+host);
+			}
+		} else {
+
         socket = new Socket();
         // ->@wjw_add
         socket.setReuseAddress(true);
@@ -155,8 +206,10 @@ public class Connection implements Closeable {
         // immediately
         // <-@wjw_add
 
-        socket.connect(new InetSocketAddress(host, port), connectionTimeout);
-        socket.setSoTimeout(soTimeout);
+
+			socket.connect(new InetSocketAddress(host, port), soTimeout);
+		}
+		socket.setSoTimeout(soTimeout);
         outputStream = new RedisOutputStream(socket.getOutputStream());
         inputStream = new RedisInputStream(socket.getInputStream());
       } catch (IOException ex) {
@@ -186,8 +239,9 @@ public class Connection implements Closeable {
   }
 
   public boolean isConnected() {
-    return socket != null && socket.isBound() && !socket.isClosed() && socket.isConnected()
-        && !socket.isInputShutdown() && !socket.isOutputShutdown();
+	return socket != null && (socket instanceof AFUNIXSocket ? true : socket.isBound()) && !socket.isClosed()
+		&& socket.isConnected() && !socket.isInputShutdown()
+		&& !socket.isOutputShutdown();
   }
 
   public String getStatusCodeReply() {
@@ -213,8 +267,15 @@ public class Connection implements Closeable {
   public byte[] getBinaryBulkReply() {
     flush();
     pipelinedCommands--;
-    return (byte[]) readProtocolWithCheckingBroken();
+	return (byte[])readProtocolWithCheckingBroken();
+        
   }
+  
+  public ByteBuffer getBinaryBulkReplyBuffer() {
+	    flush();
+	    pipelinedCommands--;
+	    return (ByteBuffer) readProtocolWithCheckingBrokenBuffer();
+	  }
 
   public Long getIntegerReply() {
     flush();
@@ -300,4 +361,13 @@ public class Connection implements Closeable {
       throw exc;
     }
   }
+  
+  protected Object readProtocolWithCheckingBrokenBuffer() {
+	    try {
+	      return Protocol.readBuffer(inputStream);
+	    } catch (JedisConnectionException exc) {
+	      broken = true;
+	      throw exc;
+	    }
+	  }
 }

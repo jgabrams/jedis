@@ -1,6 +1,7 @@
 package redis.clients.jedis;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -72,6 +73,21 @@ public final class Protocol {
 
   public static final byte[] BYTES_TRUE = toByteArray(1);
   public static final byte[] BYTES_FALSE = toByteArray(0);
+  
+  public static final int INITIAL_BUFFER_SIZE = 4096;
+  
+  private static ThreadLocal<byte[]> tlRequestBuffer =
+		    new ThreadLocal<byte[]>() {
+		        @Override public byte[] initialValue() {
+		            return new byte[INITIAL_BUFFER_SIZE]; 
+		        }
+		    };
+  private static ThreadLocal<ByteBuffer> tlBytes =
+	    new ThreadLocal<ByteBuffer>() {
+	        @Override public ByteBuffer initialValue() {
+	            return ByteBuffer.wrap(tlRequestBuffer.get()); 
+	        }
+	    };
 
   private Protocol() {
     // this prevent the class from instantiation
@@ -102,6 +118,32 @@ public final class Protocol {
       throw new JedisConnectionException(e);
     }
   }
+  
+  public static void sendCommand(final RedisOutputStream os, final byte[] command,
+	      final byte[] key, final int keyOffset, final int keyLength, final byte[] value, final int valueOffset, final int valueLength) {
+	    try {
+	      os.write(ASTERISK_BYTE);
+	      os.writeIntCrLf(3);
+	      os.write(DOLLAR_BYTE);
+	      os.writeIntCrLf(command.length);
+	      os.write(command);
+	      os.writeCrLf();
+
+	      
+          os.write(DOLLAR_BYTE);
+          os.writeIntCrLf(keyLength);
+          os.write(key, keyOffset, keyLength);
+          os.writeCrLf();
+	    
+          os.write(DOLLAR_BYTE);
+          os.writeIntCrLf(valueLength);
+          os.write(value, valueOffset, valueLength);
+          os.writeCrLf();
+	      
+	    } catch (IOException e) {
+	      throw new JedisConnectionException(e);
+	    }
+	  }
 
   private static void processError(final RedisInputStream is) {
     String message = is.readLine();
@@ -160,6 +202,22 @@ public final class Protocol {
       throw new JedisConnectionException("Unknown reply: " + (char) b);
     }
   }
+  
+  private static Object processBuffer(final RedisInputStream is) {
+
+	    final byte b = is.readByte();
+	    if (b == PLUS_BYTE) {
+	    	ByteBuffer buf = tlBytes.get().clear().put(processStatusCodeReply(is)); 
+	      return buf;
+	    } else if (b == DOLLAR_BYTE) {
+	      return processBulkReplyBuffer(is);
+	    } else if (b == MINUS_BYTE) {
+	      processError(is);
+	      return null;
+	    } else {
+	      throw new JedisConnectionException("Unknown reply: " + (char) b);
+	    }
+	  }
 
   private static byte[] processStatusCodeReply(final RedisInputStream is) {
     return is.readLineBytes();
@@ -186,6 +244,40 @@ public final class Protocol {
 
     return read;
   }
+  
+  private static ByteBuffer processBulkReplyBuffer(final RedisInputStream is) {
+	    final int len = is.readIntCrLf();
+	    if (len == -1) {
+	      return null;
+	    }
+
+	    ByteBuffer read = tlBytes.get();
+	    read.clear();
+	    if (len > read.capacity())
+	    {
+	    	tlRequestBuffer.set(new byte[len]);
+	    	read = ByteBuffer.wrap(tlRequestBuffer.get());
+	    	tlBytes.set(read);
+	    	
+	    }
+	    //final byte[] read = new byte[len];
+	    int offset = 0;
+	    while (offset < len) {
+	    	
+	      final int size = is.read(tlRequestBuffer.get(), offset, (len - offset));
+	      if (size == -1) throw new JedisConnectionException(
+	          "It seems like server has closed the connection.");
+	      offset += size;
+	    }
+	    read.position(len);
+	    read.flip();
+
+	    // read 2 more bytes for the command delimiter
+	    is.readByte();
+	    is.readByte();
+
+	    return read;
+	  }
 
   private static Long processInteger(final RedisInputStream is) {
     return is.readLongCrLf();
@@ -210,6 +302,10 @@ public final class Protocol {
   public static Object read(final RedisInputStream is) {
     return process(is);
   }
+  
+  public static Object readBuffer(final RedisInputStream is) {
+	    return processBuffer(is);
+	  }
 
   public static final byte[] toByteArray(final boolean value) {
     return value ? BYTES_TRUE : BYTES_FALSE;
