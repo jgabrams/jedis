@@ -26,6 +26,7 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
   protected Pipeline pipeline = null;
 
   static byte[] NTGET_BYTES = new String("NTGET").getBytes();
+  static byte[] NTLGET_BYTES = new String("NTLGET").getBytes();
   static byte[] HGET_BYTES = new String("HGET").getBytes();
 
   public BinaryJedis() {
@@ -751,6 +752,12 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     return client.getBinaryBulkReply();
   }
   
+  public byte[] ntlget(final byte[] key, final byte[] field) {
+	    checkIsInMultiOrPipeline();
+	    client.ntlget(key, field);
+	    return client.getBinaryBulkReply();
+	  }
+  
   /**
    * If key holds a ntrie, retrieve the value associated to the specified field.
    * <p>
@@ -766,6 +773,12 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     client.sendCommand(NTGET_BYTES, key, keyOffset, keyLength, field, fieldOffset, fieldLength);
     return client.getBinaryBulkReplyBuffer();
   }
+  
+  public ByteBuffer ntlget(final byte[] key, int keyOffset, int keyLength, final byte[] field, int fieldOffset, int fieldLength) {
+	    checkIsInMultiOrPipeline();
+	    client.sendCommand(NTLGET_BYTES, key, keyOffset, keyLength, field, fieldOffset, fieldLength);
+	    return client.getBinaryBulkReplyBuffer();
+	  }
   
 
   /**
@@ -3389,7 +3402,8 @@ public class BinaryJedis implements BasicCommands, BinaryJedisCommands, MultiKey
     List<Object> result = client.getObjectMultiBulkReply();
     byte[] newcursor = (byte[]) result.get(0);
     List<Tuple> results = new ArrayList<Tuple>();
-    List<byte[]> rawResults = (List<byte[]>) result.get(1);
+    @SuppressWarnings("unchecked")
+	List<byte[]> rawResults = (List<byte[]>) result.get(1);
     Iterator<byte[]> iterator = rawResults.iterator();
     while (iterator.hasNext()) {
       results.add(new Tuple(iterator.next(), Double.valueOf(SafeEncoder.encode(iterator.next()))));

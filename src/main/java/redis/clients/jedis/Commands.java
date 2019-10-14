@@ -99,13 +99,19 @@ public interface Commands {
 
   public void hgetAll(final String key);
   
-  public void ntset(final String key, final String field, final String value);
+  public void ntadd(final String key, final String field, final String value);
   
-  public void ntzset(final String key, final String field, final String value);
+  public void ntzadd(final String key, final String field, final String value);
+  
+  public void ntladd(final String key, final String field, final String value);
 
   public void ntget(final String key, final String field);
   
+  public void ntlget(final String key, final String field);
+  
   public void ntdel(final String key, final String field);
+  
+  public void ntldel(final String key, final String field);
 
   public void rpush(final String key, final String... strings);
 

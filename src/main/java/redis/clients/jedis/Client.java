@@ -207,19 +207,31 @@ public class Client extends BinaryClient implements Commands {
     hgetAll(SafeEncoder.encode(key));
   }
 
-  public void ntset(final String key, final String field, final String value) {
-    ntset(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
+  public void ntladd(final String key, final String field, final String value) {
+    ntladd(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
   }
   
-  public void ntzset(final String key, final String field, final String value) {
-    ntzset(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
+  public void ntadd(final String key, final String field, final String value) {
+    ntladd(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
+  }
+  
+  public void ntzadd(final String key, final String field, final String value) {
+    ntzadd(SafeEncoder.encode(key), SafeEncoder.encode(field), SafeEncoder.encode(value));
   }
 
   public void ntget(final String key, final String field) {
 	ntget(SafeEncoder.encode(key), SafeEncoder.encode(field));
   }
   
+  public void ntlget(final String key, final String field) {
+	ntlget(SafeEncoder.encode(key), SafeEncoder.encode(field));
+  }
+  
   public void ntdel(final String key, final String field) {
+	ntdel(SafeEncoder.encode(key), SafeEncoder.encode(field));
+  }
+  
+  public void ntldel(final String key, final String field) {
 	ntdel(SafeEncoder.encode(key), SafeEncoder.encode(field));
   }
 
